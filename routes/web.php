@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\CommitteeController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -16,3 +17,6 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     return view('welcome');
 });
+
+Route::get('/getcommittee', [CommitteeController::class, "index"])->name("fetch");
+Route::get('/showcommittee', [CommitteeController::class, "showData2"])->name("show");
