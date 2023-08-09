@@ -10,19 +10,25 @@ use Yajra\DataTables\DataTables;
 
 class CommitteeController extends Controller
 {
-    public function index(){
+    public function index()
+    {
 
-        $t=time();
+        $t = time();
         $response = Http::get("https://api.open.fec.gov/v1/committees", ["api_key" => env('FEC_API_KEY'), "per_page" => 100]);
         $response = collect(json_decode($response->body()))->get("pagination");
-        $pages=$response->pages;
+        $pages = $response->pages;
         set_time_limit(6000);
         Committee::truncate();
-        for ($current_page = 1; $current_page <= 100; $current_page ++) {
+        for ($current_page = 1; $current_page <= $pages; $current_page++) {
+            fetch:
             $response = Http::get("https://api.open.fec.gov/v1/committees", ["api_key" => env('FEC_API_KEY'), "per_page" => 100, "page" => $current_page]);
             $response = collect(json_decode($response->body()))->get("results");
-            dump($current_page,time()-$t);
-            foreach($response as $committee_data) {
+            dump($current_page);
+            if (empty($response)) {
+                dump("null");
+                goto fetch;
+            }
+            foreach ($response as $committee_data) {
                 $committee = new Committee();
                 $committee->state = $committee_data->state;
                 $committee->designation_full = $committee_data->designation_full;
@@ -50,7 +56,7 @@ class CommitteeController extends Controller
                 $committee->save();
             }
         }
-     
+
         dd("Success");
     }
 
@@ -73,5 +79,71 @@ class CommitteeController extends Controller
 
         return view('show-committees2');
     }
-    
+
+    public function filter(Request $request)
+    {
+        $committee_id = "%%";
+        $name = "%%";
+        $state = "%%";
+        $first_file_date = "%%";
+
+        $column_names = [
+            'Name' => 'name',
+            'Committee Id' => 'committee_id',
+            'State' => 'state',
+            'First File Date' => 'first_file_date'
+        ];
+        $allfilters = json_decode($request->input('allfilters'), true);
+
+        if (!empty($allfilters)) {
+            foreach ($allfilters as $filter) {
+                $filterParts = explode(' : ', $filter);
+
+                $filterName = $column_names[trim($filterParts[0])];
+                $filterOperator = trim($filterParts[1]);
+                $filterValue = trim($filterParts[2]);
+
+                switch ($filterOperator) {
+                    case 'Starts With':
+                        $$filterName = $filterValue . "%";
+                        break;
+                    case 'Contains':
+                        $$filterName = "%" . $filterValue . "%";
+                        break;
+                    case 'Ends With':
+                        $$filterName = "%" . $filterValue;
+                        break;
+                    case 'Is':
+                        $$filterName = $filterValue;
+                        break;
+                }
+            }
+        }
+
+        $queryConditions = [];
+
+        if ($name !== "%%") {
+            $queryConditions[] = ['name', 'like', $name];
+        }
+
+        if ($committee_id !== "%%") {
+            $queryConditions[] = ['committee_id', 'like', $committee_id];
+        }
+
+        if ($state !== "%%") {
+            $queryConditions[] = ['state', 'like', $state];
+        }
+
+        if ($first_file_date !== "%%") {
+            $queryConditions[] = ['first_file_date', 'like', $first_file_date];
+        }
+        $data = Committee::where($queryConditions);
+        // return $data->toRawSql();
+        return DataTables::of($data)->addIndexColumn()
+            ->rawColumns(['action'])
+            ->make(true);
+
+
+        // return view('show-committees2');
+    }
 }

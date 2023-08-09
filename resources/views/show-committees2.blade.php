@@ -18,6 +18,7 @@
         <div class="col-12 d-flex flex-start">
             <button class="btn btn-info" data-toggle="modal" data-target="#filterModal">Filters</button>
             <span class="selected-filters ml-2"></span>
+            <button class="btn btn-info" id="ApplyFilterBtn" style="display:none">Apply</button>
         </div>
     </div>
     <div class="row mt-2">
@@ -58,7 +59,7 @@
 
                 <div class="d-flex justify-content-between">
                 <select name="filter_column" id="filter_column">
-                    <option disabled selected>Select Column</option>
+                    <option disabled selected class="default_col">Select Column</option>
                     <option value="name">Name</option>
                     <option value="committee_id">Committee Id</option>
                     <option value="state">State</option>
@@ -101,53 +102,39 @@ function format(d) {
         '</dl>'
     );
 }
+var table; 
 $(function () {
-    // var selectedFilters = {};
-
-    // // When the "Apply Filters" button is clicked
-    // $('#AddFiltersBtn').on('click', function () {
-    //     // Get the selected filters from the modal
-    //     var filter1Value = $('#filter1').val();
-
-    //     // Update the selectedFilters object with the filter values
-    //     selectedFilters.filter1 = filter1Value;
-    //     selectedFilters.filter2 = filter2Value;
-
-    //     // Close the modal
-    //     $('#filterModal').modal('hide');
-
-    //     // Update the display of selected filters
-    //     updateSelectedFiltersDisplay();
-    // });
-
-    // // Function to update the display of selected filters
-    // function updateSelectedFiltersDisplay() {
-    //     var selectedFiltersDisplay = $('.selected-filters');
-    //     selectedFiltersDisplay.empty();
-
-    //     // Loop through the selectedFilters object and display each filter
-    //     for (var filter in selectedFilters) {
-    //         if (selectedFilters.hasOwnProperty(filter)) {
-    //             var filterValue = selectedFilters[filter];
-    //             var filterText = filter + ': ' + filterValue;
-    //             var filterTag = $('<span class="badge badge-primary mr-2"></span>').text(filterText);
-    //             selectedFiltersDisplay.append(filterTag);
-    //         }
-    //     }
-    // }
-
+    
     var selectedFilters = {};
-
+    
+    table= LoadDataTable();
     // Function to add the selected filter to the display and update the selectedFilters object
     function addSelectedFilter() {
         var column = $('#filter_column').val();
         var filterType = $('#filter_type').val();
         var filterValue = $('#search').val();
 
+        const filterTypeDisplay = {
+            'start': 'Starts With',
+            'contains': 'Contains',
+            'ends': 'Ends With',
+            'is': 'Is',
+            'between': 'Between'
+        };
+
+        const columnDisplay = {
+            'name': 'Name',
+            'committee_id': 'Committee Id',
+            'state': 'State',
+            'first_file_date': 'First File Date'
+        };
+        
+        var newfilter = filterTypeDisplay[filterType]
+        var newcolumn = columnDisplay[column]
         // If a filter value is selected, add it to the display
         if (filterValue !== "") {
-            var filterText = column + ': ' + filterType + ' ' + filterValue;
-            var filterTag = $('<span class="badge badge-primary mr-2"></span>').text(filterText);
+            var filterText = newcolumn + ' : ' + newfilter + ' : ' + filterValue;
+            var filterTag = $('<span class="badge badge-primary mr-2 filters"></span>').text(filterText);
 
             // Add the filter to the display
             $('.selected-filters').append(filterTag);
@@ -164,7 +151,7 @@ $(function () {
 
         // Close the modal
         $('#filterModal').modal('hide');
-
+        $('#ApplyFilterBtn').show();
         // Clear the filter options
         $('#filter_column').val('').change();
         $('#filter_type').val('').change();
@@ -185,6 +172,21 @@ $(function () {
         $('#search').val('').prop('disabled', true);
     });
     
+    
+    $('#ApplyFilterBtn').on('click', function () {
+        var allfilters = $('.filters').map(function () {
+            return $(this).text();
+        }).get();
+
+        var allfiltersJSON = JSON.stringify(allfilters);
+        // $('.committee_datatable').DataTable().destroy();
+
+        if(table){
+            table.destroy();
+        }
+
+        table = LoadDataTable(allfiltersJSON);
+    })
     //add filter options on change
     $('#filter_column').on('change', function () {
         var column = $(this).val();
@@ -212,10 +214,33 @@ $(function () {
         }
     });
 
-    var table = $('.committee_datatable').DataTable({
+    
+
+    // Add event listener for opening and closing details
+    // table.on('click', 'td.dt-control', function (e) {
+    //     let tr = e.target.closest('tr');
+    //     let row = table.row(tr);
+    
+    //     if (row.child.isShown()) {
+    //         // This row is already open - close it
+    //         row.child.hide();
+    //     }
+    //     else {
+    //         // Open this row
+    //         row.child(format(row.data())).show();
+    //     }
+    // });
+});
+function LoadDataTable(allfiltersJSON = {}) {
+    table = $('.committee_datatable').DataTable({
         processing: true,
         serverSide: true,
-        ajax: "{{ route('show') }}",
+        ajax: {
+            url: " {{route('filter') }}",
+            data: {
+                allfilters: allfiltersJSON 
+            }
+        },
         columns: [
             {
             className: 'dt-control',
@@ -236,21 +261,7 @@ $(function () {
         ],
         order: [[1, 'asc']]
     });
-
-    // Add event listener for opening and closing details
-    table.on('click', 'td.dt-control', function (e) {
-        let tr = e.target.closest('tr');
-        let row = table.row(tr);
-    
-        if (row.child.isShown()) {
-            // This row is already open - close it
-            row.child.hide();
-        }
-        else {
-            // Open this row
-            row.child(format(row.data())).show();
-        }
-    });
-});
+    return table; 
+}
 </script>
 </html>

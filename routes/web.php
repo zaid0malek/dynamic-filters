@@ -20,3 +20,4 @@ Route::get('/', function () {
 
 Route::get('/getcommittee', [CommitteeController::class, "index"])->name("fetch");
 Route::get('/showcommittee', [CommitteeController::class, "showData2"])->name("show");
+Route::get('/filtered', [CommitteeController::class, "filter"])->name("filter");
