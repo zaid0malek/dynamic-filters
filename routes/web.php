@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\BankdatasetController;
 use App\Http\Controllers\CommitteeController;
+use App\Models\Bankdataset;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -21,3 +23,6 @@ Route::get('/', function () {
 Route::get('/getcommittee', [CommitteeController::class, "index"])->name("fetch");
 Route::get('/showcommittee', [CommitteeController::class, "showData2"])->name("show");
 Route::get('/filtered', [CommitteeController::class, "filter"])->name("filter");
+
+Route::get('/showbank', [BankdatasetController::class, "showData"])->name("showbank");
+Route::get('/bankfiltered', [BankdatasetController::class, "filter"])->name("bankfilter");

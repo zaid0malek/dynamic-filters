@@ -21,7 +21,7 @@ class CommitteeController extends Controller
         Committee::truncate();
         for ($current_page = 1; $current_page <= $pages; $current_page++) {
             fetch:
-            $response = Http::get("https://api.open.fec.gov/v1/committees", ["api_key" => env('FEC_API_KEY'), "per_page" => 100, "page" => $current_page]);
+            $response = Http::timeout(6)->get("https://api.open.fec.gov/v1/committees", ["api_key" => env('FEC_API_KEY'), "per_page" => 100, "page" => $current_page]);
             $response = collect(json_decode($response->body()))->get("results");
             dump($current_page);
             if (empty($response)) {
@@ -82,11 +82,12 @@ class CommitteeController extends Controller
 
     public function filter(Request $request)
     {
-        $committee_id = "%%";
-        $name = "%%";
-        $state = "%%";
-        $first_file_date = "%%";
-
+        $committee = Committee::select('*');
+        // $committee_id = "%%";
+        // $name = "%%";
+        // $state = "%%";
+        // $first_file_date = "%%";
+        $alreadyapplied = array();
         $column_names = [
             'Name' => 'name',
             'Committee Id' => 'committee_id',
@@ -102,44 +103,62 @@ class CommitteeController extends Controller
                 $filterName = $column_names[trim($filterParts[0])];
                 $filterOperator = trim($filterParts[1]);
                 $filterValue = trim($filterParts[2]);
-
+                $value = "%%";
                 switch ($filterOperator) {
                     case 'Starts With':
-                        $$filterName = $filterValue . "%";
+                        $value = $filterValue . "%";
                         break;
                     case 'Contains':
-                        $$filterName = "%" . $filterValue . "%";
+                        $value = "%" . $filterValue . "%";
                         break;
                     case 'Ends With':
-                        $$filterName = "%" . $filterValue;
+                        $value = "%" . $filterValue;
                         break;
                     case 'Is':
-                        $$filterName = $filterValue;
+                        $value = $filterValue;
                         break;
                 }
+                if (!isset($columnConditions[$filterName])) {
+                    $columnConditions[$filterName] = [];
+                }
+
+                $columnConditions[$filterName][] = [
+                    'operator' => 'LIKE',
+                    'value' => $value,
+                ];
             }
+            // dd($columnConditions);
+            $committee->where(function ($query) use ($columnConditions) {
+                foreach ($columnConditions as $column => $conditions) {
+                    $query->where(function ($subquery) use ($conditions, $column) {
+                        foreach ($conditions as $condition) {
+                            $subquery->orWhere($column, $condition['operator'], $condition['value']);
+                        }
+                    });
+                }
+            });
         }
 
-        $queryConditions = [];
+        // $queryConditions = [];
 
-        if ($name !== "%%") {
-            $queryConditions[] = ['name', 'like', $name];
-        }
+        // if ($name !== "%%") {
+        //     $queryConditions[] = ['name', 'like', $name];
+        // }
 
-        if ($committee_id !== "%%") {
-            $queryConditions[] = ['committee_id', 'like', $committee_id];
-        }
+        // if ($committee_id !== "%%") {
+        //     $queryConditions[] = ['committee_id', 'like', $committee_id];
+        // }
 
-        if ($state !== "%%") {
-            $queryConditions[] = ['state', 'like', $state];
-        }
+        // if ($state !== "%%") {
+        //     $queryConditions[] = ['state', 'like', $state];
+        // }
 
-        if ($first_file_date !== "%%") {
-            $queryConditions[] = ['first_file_date', 'like', $first_file_date];
-        }
-        $data = Committee::where($queryConditions);
+        // if ($first_file_date !== "%%") {
+        //     $queryConditions[] = ['first_file_date', 'like', $first_file_date];
+        // }
+        // $data = Committee::where($queryConditions);
         // return $data->toRawSql();
-        return DataTables::of($data)->addIndexColumn()
+        return DataTables::of($committee)->addIndexColumn()
             ->rawColumns(['action'])
             ->make(true);
 

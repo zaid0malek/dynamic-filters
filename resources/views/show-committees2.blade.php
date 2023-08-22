@@ -6,6 +6,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.1.3/css/bootstrap.min.css" />
     <link href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css" rel="stylesheet">
     <link href="https://cdn.datatables.net/1.10.19/css/dataTables.bootstrap4.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" 
+        integrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA==" 
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.js"></script>  
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.0/jquery.validate.js"></script>
     <script src="https://cdn.datatables.net/1.10.16/js/jquery.dataTables.min.js"></script>
@@ -91,11 +94,7 @@ function format(d) {
         '<dl>' +
         '<dt>Full name:</dt>' +
         '<dd>' +
-        "d.name" +
-        '</dd>' +
-        '<dt>Extension number:</dt>' +
-        '<dd>' +
-        "d.name" +
+        d.name +
         '</dd>' +
         '<dt>Extra info:</dt>' +
         '<dd>And any further details here (images etc)...</dd>' +
@@ -104,7 +103,7 @@ function format(d) {
 }
 var table; 
 $(function () {
-    
+    var allfilters;
     var selectedFilters = {};
     
     table= LoadDataTable();
@@ -135,7 +134,16 @@ $(function () {
         if (filterValue !== "") {
             var filterText = newcolumn + ' : ' + newfilter + ' : ' + filterValue;
             var filterTag = $('<span class="badge badge-primary mr-2 filters"></span>').text(filterText);
+            var deleteIcon = $('<i class="fas fa-times-circle ml-1"></i>');
 
+            filterTag.append(deleteIcon);
+        
+            // Add a click event to remove the filter tag when clicked
+            filterTag.on('click', function() {
+                $(this).remove();
+                // Remove the selected filter from the selectedFilters object
+                delete selectedFilters[column];
+            });
             // Add the filter to the display
             $('.selected-filters').append(filterTag);
 
@@ -153,31 +161,17 @@ $(function () {
         $('#filterModal').modal('hide');
         $('#ApplyFilterBtn').show();
         // Clear the filter options
-        $('#filter_column').val('').change();
-        $('#filter_type').val('').change();
+        // $('#filter_column').val('').change();
+        // $('#filter_type').val('').change();
+        $("#filter_column option:first-child").prop("selected", true);
+        $("#filter_type option:first-child").prop("selected", true);
         $('#search').val('').prop('disabled', true);
     });
 
     // When the "Apply Filters" button is clicked
-    $('#applyFiltersBtn').on('click', function () {
-        // Add the selected filter to the display
-        addSelectedFilter();
-
-        // Close the modal
-        $('#filterModal').modal('hide');
-
-        // Clear the filter options
-        $('#filter_column').val('').change();
-        $('#filter_type').val('').change();
-        $('#search').val('').prop('disabled', true);
-    });
-    
-    
     $('#ApplyFilterBtn').on('click', function () {
-        var allfilters = $('.filters').map(function () {
-            return $(this).text();
-        }).get();
-
+        
+        allfilters = getAllFilters();
         var allfiltersJSON = JSON.stringify(allfilters);
         // $('.committee_datatable').DataTable().destroy();
 
@@ -190,9 +184,10 @@ $(function () {
     //add filter options on change
     $('#filter_column').on('change', function () {
         var column = $(this).val();
-
+        allfilters = getAllFilters();
         switch (column) {
             case "name":
+                // console.log(allfilters);
                 $('#filter_type').html('<option value="start">Starts With</option><option value="contains">Contains</option><option value="ends">Ends With</option>');
                 $('#search').prop("disabled",false);
                 break;
@@ -217,24 +212,31 @@ $(function () {
     
 
     // Add event listener for opening and closing details
-    // table.on('click', 'td.dt-control', function (e) {
-    //     let tr = e.target.closest('tr');
-    //     let row = table.row(tr);
+    table.on('click', 'td.dt-control', function (e) {
+        let tr = e.target.closest('tr');
+        let row = table.row(tr);
     
-    //     if (row.child.isShown()) {
-    //         // This row is already open - close it
-    //         row.child.hide();
-    //     }
-    //     else {
-    //         // Open this row
-    //         row.child(format(row.data())).show();
-    //     }
-    // });
+        if (row.child.isShown()) {
+            // This row is already open - close it
+            row.child.hide();
+        }
+        else {
+            // Open this row
+            row.child(format(row.data())).show();
+        }
+    });
 });
+function getAllFilters() {
+    let allfilters = $('.filters').map(function () {
+            return $(this).text();
+        }).get();
+    return allfilters;
+}
 function LoadDataTable(allfiltersJSON = {}) {
     table = $('.committee_datatable').DataTable({
         processing: true,
         serverSide: true,
+        dom: 'ltip',  
         ajax: {
             url: " {{route('filter') }}",
             data: {
